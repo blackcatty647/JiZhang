@@ -6,6 +6,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="theme-color" content="#f5f5f5">
+<link rel="manifest" href="manifest.json">
 <title>记账</title>
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
@@ -430,12 +431,6 @@ function showToast(msg){
   clearTimeout(t._tid);
   t._tid = setTimeout(()=>t.classList.remove('show'), 1800);
 }
-
-// PWA manifest (blob URL works on HTTP, ignored on file://)
-const manifest = {name:'记账',short_name:'记账',start_url:location.href,display:'standalone',background_color:'#f5f5f5',theme_color:'#4f46e5',icons:[{src:'data:image/svg+xml,'+encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 192 192"><rect width="192" height="192" rx="40" fill="#4f46e5"/><text x="96" y="120" text-anchor="middle" font-size="100">💰</text></svg>'),sizes:'192x192',type:'image/svg+xml'}]};
-const mBlob = new Blob([JSON.stringify(manifest)],{type:'application/json'});
-const mUrl = URL.createObjectURL(mBlob);
-const link = document.createElement('link'); link.rel='manifest'; link.href=mUrl; document.head.appendChild(link);
 
 // Service worker for offline caching (requires HTTPS / localhost)
 if('serviceWorker' in navigator && location.protocol !== 'file:'){
