@@ -1,0 +1,449 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="theme-color" content="#f5f5f5">
+<title>记账</title>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#f5f5f5;--card:#fff;--text:#1a1a2e;--text2:#6b7280;--text3:#9ca3af;
+  --border:#e5e7eb;--shadow:0 1px 3px rgba(0,0,0,.08);
+  --accent:#4f46e5;--accent-light:#e0e7ff;--danger:#ef4444;
+  --radius:12px;--radius-sm:8px;
+  --safe-bottom:env(safe-area-inset-bottom,16px);
+  --header-h:56px;--nav-h:60px;
+  --cat-food:#ff6b6b;--cat-transport:#4ecdc4;--cat-shop:#f59e0b;
+  --cat-housing:#8b5cf6;--cat-ent:#10b981;--cat-medical:#f472b6;
+  --cat-edu:#3b82f6;--cat-other:#94a3b8;
+}
+body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;background:var(--bg);color:var(--text);-webkit-tap-highlight-color:transparent;overflow:hidden;height:100dvh;display:flex;flex-direction:column}
+header{height:var(--header-h);display:flex;align-items:center;justify-content:space-between;padding:0 16px;flex-shrink:0}
+header h1{font-size:18px;font-weight:700}
+.month-nav{display:flex;align-items:center;gap:8px}
+.month-nav button{width:32px;height:32px;border:none;background:var(--card);border-radius:50%;font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center;color:var(--text)}
+.month-nav span{font-size:14px;font-weight:600;min-width:80px;text-align:center}
+main{flex:1;overflow-y:auto;padding:0 16px 16px;-webkit-overflow-scrolling:touch}
+.empty-state{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:60px 20px;color:var(--text3)}
+.empty-state .icon{font-size:64px;margin-bottom:16px}
+.empty-state p{font-size:14px}
+
+/* Today total card */
+.total-card{background:var(--accent);color:#fff;border-radius:var(--radius);padding:20px 24px;margin-bottom:16px;text-align:center}
+.total-card .label{font-size:13px;opacity:.85}
+.total-card .amount{font-size:36px;font-weight:800;margin:4px 0}
+.total-card .count{font-size:12px;opacity:.7}
+
+/* Expense list */
+.section-title{font-size:13px;font-weight:600;color:var(--text2);margin:16px 0 8px}
+.expense-item{display:flex;align-items:center;padding:14px 16px;background:var(--card);border-radius:var(--radius-sm);margin-bottom:8px;gap:12px;transition:transform .15s}
+.expense-item:active{transform:scale(.98)}
+.expense-item .cat-icon{width:40px;height:40px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0}
+.expense-item .info{flex:1;min-width:0}
+.expense-item .info .cat-name{font-size:14px;font-weight:600}
+.expense-item .info .note{font-size:12px;color:var(--text2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.expense-item .info .time{font-size:11px;color:var(--text3)}
+.expense-item .amount-col{text-align:right}
+.expense-item .amount-col .val{font-size:16px;font-weight:700;color:var(--text)}
+.expense-item .amount-col .date-label{font-size:11px;color:var(--text3)}
+
+.date-group{margin-bottom:16px}
+.date-group .date-header{font-size:13px;font-weight:600;color:var(--text2);padding:8px 0;display:flex;justify-content:space-between}
+.date-group .date-header .day-total{font-weight:400;color:var(--text3)}
+
+/* Stats */
+.stats-total{text-align:center;padding:20px 0}
+.stats-total .num{font-size:40px;font-weight:800}
+.stats-total .lbl{font-size:13px;color:var(--text2);margin-top:4px}
+.pie-wrap{display:flex;justify-content:center;align-items:center;margin:16px 0}
+.pie{width:180px;height:180px;border-radius:50%;position:relative}
+.pie-center{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);text-align:center;background:#fff;width:80px;height:80px;border-radius:50%;display:flex;flex-direction:column;align-items:center;justify-content:center;font-size:11px;color:var(--text2)}
+.cat-list{margin-top:16px}
+.cat-row{display:flex;align-items:center;padding:10px 0;gap:10px;}
+.cat-row .dot{width:10px;height:10px;border-radius:50%;flex-shrink:0}
+.cat-row .name{flex:1;font-size:14px}
+.cat-row .pct{font-size:12px;color:var(--text3);margin-right:8px}
+.cat-row .val{font-size:14px;font-weight:600}
+
+/* Bottom nav */
+nav{height:calc(var(--nav-h) + var(--safe-bottom));display:flex;border-top:1px solid var(--border);background:var(--card);flex-shrink:0;padding-bottom:var(--safe-bottom)}
+nav button{flex:1;border:none;background:none;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;font-size:10px;color:var(--text3);cursor:pointer;transition:color .15s}
+nav button.active{color:var(--accent)}
+nav button .nav-icon{font-size:22px}
+
+/* FAB */
+.fab{position:fixed;right:20px;bottom:calc(var(--nav-h) + var(--safe-bottom) + 20px);width:52px;height:52px;border-radius:50%;background:var(--accent);color:#fff;border:none;font-size:28px;cursor:pointer;box-shadow:0 4px 12px rgba(79,70,229,.4);z-index:10;display:flex;align-items:center;justify-content:center;transition:transform .2s,box-shadow .2s}
+.fab:active{transform:scale(.92)}
+
+/* Bottom sheet overlay */
+.overlay{position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:100;display:none;align-items:flex-end}
+.overlay.show{display:flex}
+.sheet{background:var(--card);border-radius:16px 16px 0 0;width:100%;max-height:85vh;overflow-y:auto;padding:20px 16px calc(20px + var(--safe-bottom));animation:slideUp .25s ease}
+@keyframes slideUp{from{transform:translateY(100%)}to{transform:translateY(0)}}
+.sheet h2{font-size:16px;font-weight:700;margin-bottom:16px;text-align:center}
+
+.amount-input-wrap{display:flex;align-items:center;justify-content:center;gap:4px;margin-bottom:20px}
+.amount-input-wrap .currency{font-size:32px;font-weight:700;color:var(--text)}
+.amount-input-wrap input{width:160px;font-size:36px;font-weight:800;border:none;border-bottom:2px solid var(--border);outline:none;text-align:center;padding:8px 4px;background:transparent}
+.amount-input-wrap input:focus{border-color:var(--accent)}
+
+.cat-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:20px}
+.cat-chip{border:2px solid var(--border);border-radius:var(--radius-sm);padding:12px 8px;text-align:center;cursor:pointer;transition:all .15s;background:var(--card);font-size:13px}
+.cat-chip .emoji{font-size:24px;display:block;margin-bottom:4px}
+.cat-chip.selected{border-color:var(--accent);background:var(--accent-light)}
+
+.sheet-row{display:flex;gap:12px;margin-bottom:16px}
+.sheet-row input[type=text],.sheet-row input[type=date]{flex:1;padding:12px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:14px;outline:none;font-family:inherit}
+.sheet-row input:focus{border-color:var(--accent)}
+.btn-primary{width:100%;padding:14px;background:var(--accent);color:#fff;border:none;border-radius:var(--radius);font-size:16px;font-weight:600;cursor:pointer;transition:opacity .15s}
+.btn-primary:active{opacity:.85}
+.btn-danger{width:100%;padding:14px;background:none;color:var(--danger);border:1px solid var(--danger);border-radius:var(--radius);font-size:14px;margin-top:8px;cursor:pointer}
+
+/* Toast */
+.toast{position:fixed;top:20px;left:50%;transform:translateX(-50%);background:#1a1a2e;color:#fff;padding:10px 20px;border-radius:20px;font-size:13px;z-index:200;opacity:0;transition:opacity .25s;pointer-events:none}
+.toast.show{opacity:1}
+</style>
+</head>
+<body>
+
+<header id="header">
+  <h1 id="headerTitle">今日</h1>
+  <div class="month-nav">
+    <button onclick="prevMonth()">◀</button>
+    <span id="monthLabel">5月 2026</span>
+    <button onclick="nextMonth()">▶</button>
+  </div>
+</header>
+
+<main id="main"></main>
+
+<nav>
+  <button data-view="today" class="active" onclick="switchView('today')">
+    <span class="nav-icon">📋</span>今日
+  </button>
+  <button data-view="history" onclick="switchView('history')">
+    <span class="nav-icon">📅</span>明细
+  </button>
+  <button data-view="stats" onclick="switchView('stats')">
+    <span class="nav-icon">📊</span>统计
+  </button>
+</nav>
+
+<button class="fab" onclick="openAddSheet()" title="记一笔">+</button>
+
+<div class="overlay" id="overlay" onclick="closeSheet(event)">
+  <div class="sheet" id="sheet" onclick="event.stopPropagation()"></div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const CATS = [
+  {key:'food',name:'餐饮',emoji:'🍜',color:'#ff6b6b'},
+  {key:'transport',name:'交通',emoji:'🚌',color:'#4ecdc4'},
+  {key:'shop',name:'购物',emoji:'🛒',color:'#f59e0b'},
+  {key:'housing',name:'住房',emoji:'🏠',color:'#8b5cf6'},
+  {key:'ent',name:'娱乐',emoji:'🎮',color:'#10b981'},
+  {key:'medical',name:'医疗',emoji:'💊',color:'#f472b6'},
+  {key:'edu',name:'教育',emoji:'📚',color:'#3b82f6'},
+  {key:'other',name:'其他',emoji:'💰',color:'#94a3b8'}
+];
+const CAT_MAP = Object.fromEntries(CATS.map(c=>[c.key,c]));
+
+let expenses = [];
+let currentView = 'today';
+let currentMonth = '';
+let editingId = null;
+
+function today(){ const d=new Date(); return fmtDate(d); }
+function fmtDate(d){ return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
+function fmtMonth(d){ return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0'); }
+
+function init(){
+  currentMonth = fmtMonth(new Date());
+  loadExpenses();
+  setupMonthNav();
+}
+function loadExpenses(){
+  try{ expenses = JSON.parse(localStorage.getItem('expenses')||'[]'); }
+  catch(e){ expenses = []; }
+}
+function saveExpenses(){ localStorage.setItem('expenses',JSON.stringify(expenses)); }
+function setupMonthNav(){
+  document.getElementById('monthLabel').textContent = formatMonthLabel(currentMonth);
+}
+function formatMonthLabel(ym){
+  const [y,m] = ym.split('-');
+  return parseInt(m)+'月 '+y;
+}
+function prevMonth(){
+  const [y,m] = currentMonth.split('-').map(Number);
+  const d = new Date(y,m-2,1);
+  updateMonth(fmtMonth(d));
+}
+function nextMonth(){
+  const [y,m] = currentMonth.split('-').map(Number);
+  const d = new Date(y,m,1);
+  updateMonth(fmtMonth(d));
+}
+function updateMonth(ym){
+  currentMonth = ym;
+  setupMonthNav();
+  render();
+}
+
+function switchView(view){
+  currentView = view;
+  document.querySelectorAll('nav button').forEach(b=>b.classList.toggle('active',b.dataset.view===view));
+  const titles = {today:'今日',history:'明细',stats:'统计'};
+  document.getElementById('headerTitle').textContent = titles[view];
+  // hide month nav on today view
+  document.querySelector('.month-nav').style.visibility = view==='today'?'hidden':'visible';
+  document.getElementById('main').scrollTop = 0;
+  render();
+}
+
+function render(){
+  switch(currentView){
+    case 'today': renderToday(); break;
+    case 'history': renderHistory(); break;
+    case 'stats': renderStats(); break;
+  }
+}
+
+function getMonthExpenses(){
+  return expenses.filter(e=>e.date.startsWith(currentMonth));
+}
+function getTodayExpenses(){
+  return expenses.filter(e=>e.date===today());
+}
+
+function groupByDate(exps){
+  const groups = {};
+  exps.sort((a,b)=>b.date.localeCompare(a.date)||b.id-a.id);
+  for(const e of exps){
+    if(!groups[e.date]) groups[e.date] = [];
+    groups[e.date].push(e);
+  }
+  return groups;
+}
+
+function totalAmount(exps){ return exps.reduce((s,e)=>s+e.amount,0); }
+
+// ── Today ──
+function renderToday(){
+  const todays = getTodayExpenses();
+  const total = totalAmount(todays);
+  const main = document.getElementById('main');
+  if(todays.length===0){
+    main.innerHTML = `
+      <div class="total-card"><div class="label">今日支出</div><div class="amount">¥0.00</div><div class="count">暂无记录</div></div>
+      <div class="empty-state"><div class="icon">📝</div><p>点击右下角 + 记一笔</p></div>`;
+    return;
+  }
+  let html = `<div class="total-card"><div class="label">今日支出</div><div class="amount">¥${total.toFixed(2)}</div><div class="count">共 ${todays.length} 笔</div></div>`;
+  html += `<div class="section-title">今日明细</div>`;
+  for(const e of todays){
+    html += expenseItemHTML(e, true);
+  }
+  main.innerHTML = html;
+}
+
+function expenseItemHTML(e, showTime){
+  const cat = CAT_MAP[e.category] || CAT_MAP.other;
+  const timeStr = showTime ? `<div class="time">${timeFromId(e.id)}</div>` : '';
+  return `
+    <div class="expense-item" onclick="openEditSheet('${e.id}')">
+      <div class="cat-icon" style="background:${cat.color}22">${cat.emoji}</div>
+      <div class="info">
+        <div class="cat-name">${cat.name}</div>
+        ${e.note ? `<div class="note">${escHtml(e.note)}</div>` : ''}
+        ${timeStr}
+      </div>
+      <div class="amount-col"><div class="val">-¥${e.amount.toFixed(2)}</div></div>
+    </div>`;
+}
+
+function timeFromId(id){
+  const d = new Date(parseInt(id));
+  if(isNaN(d.getTime())) return '';
+  return String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0');
+}
+function escHtml(s){ return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+// ── History ──
+function renderHistory(){
+  const monthExps = getMonthExpenses();
+  const main = document.getElementById('main');
+  if(monthExps.length===0){
+    main.innerHTML = `<div class="empty-state"><div class="icon">📭</div><p>本月暂无记录</p></div>`;
+    return;
+  }
+  const groups = groupByDate(monthExps);
+  let html = '';
+  for(const [date, exps] of Object.entries(groups)){
+    const dayTotal = totalAmount(exps);
+    html += `<div class="date-group"><div class="date-header"><span>${formatDateChinese(date)}</span><span class="day-total">¥${dayTotal.toFixed(2)}</span></div>`;
+    for(const e of exps){
+      html += expenseItemHTML(e, date===today());
+    }
+    html += `</div>`;
+  }
+  main.innerHTML = html;
+}
+
+function formatDateChinese(dateStr){
+  const d = new Date(dateStr+'T00:00:00');
+  const weekdays = ['周日','周一','周二','周三','周四','周五','周六'];
+  const m = d.getMonth()+1, day = d.getDate(), wd = weekdays[d.getDay()];
+  if(dateStr===today()) return `今天 ${m}月${day}日 ${wd}`;
+  const yesterday = new Date(); yesterday.setDate(yesterday.getDate()-1);
+  if(dateStr===fmtDate(yesterday)) return `昨天 ${m}月${day}日 ${wd}`;
+  return `${m}月${day}日 ${wd}`;
+}
+
+// ── Stats ──
+function renderStats(){
+  const monthExps = getMonthExpenses();
+  const total = totalAmount(monthExps);
+  const main = document.getElementById('main');
+  if(monthExps.length===0){
+    main.innerHTML = `<div class="stats-total"><div class="num">¥0.00</div><div class="lbl">本月暂无支出</div></div>`;
+    return;
+  }
+  // aggregate by category
+  const byCat = {};
+  for(const e of monthExps){
+    byCat[e.category] = (byCat[e.category]||0) + e.amount;
+  }
+  const entries = Object.entries(byCat).sort((a,b)=>b[1]-a[1]);
+
+  // pie chart via conic gradient
+  let acc = 0;
+  const slices = entries.map(([cat,amt])=>{
+    const start = acc;
+    const pct = amt / total;
+    acc += pct;
+    const catData = CAT_MAP[cat]||CAT_MAP.other;
+    return {cat:catData,amt,pct,start};
+  });
+  const gradientParts = slices.map(s=>`${s.cat.color} ${s.start*360}deg ${(s.start+s.pct)*360}deg`);
+  const pieStyle = gradientParts.length===1
+    ? `background:${slices[0].cat.color}`
+    : `background:conic-gradient(${gradientParts.join(',')})`;
+
+  let html = `
+    <div class="stats-total"><div class="num">¥${total.toFixed(2)}</div><div class="lbl">本月支出</div></div>
+    <div class="pie-wrap"><div class="pie" style="${pieStyle}"><div class="pie-center">${entries.length}<br>分类</div></div></div>
+    <div class="cat-list">`;
+  for(const s of slices){
+    const pctStr = (s.pct*100).toFixed(1)+'%';
+    html += `<div class="cat-row"><div class="dot" style="background:${s.cat.color}"></div><span class="name">${s.cat.emoji} ${s.cat.name}</span><span class="pct">${pctStr}</span><span class="val">¥${s.amt.toFixed(2)}</span></div>`;
+  }
+  html += `</div>`;
+  main.innerHTML = html;
+}
+
+// ── Add/Edit Sheet ──
+function openAddSheet(){
+  editingId = null;
+  document.getElementById('sheet').innerHTML = sheetHTML(null);
+  document.getElementById('overlay').classList.add('show');
+  setTimeout(()=>document.getElementById('amountInput').focus(), 200);
+}
+function openEditSheet(id){
+  const e = expenses.find(x=>x.id===id);
+  if(!e) return;
+  editingId = id;
+  document.getElementById('sheet').innerHTML = sheetHTML(e);
+  document.getElementById('overlay').classList.add('show');
+  // set selected category
+  const chip = document.querySelector(`.cat-chip[data-cat="${e.category}"]`);
+  if(chip) chip.classList.add('selected');
+}
+function closeSheet(ev){
+  if(ev && ev.target !== document.getElementById('overlay')) return;
+  document.getElementById('overlay').classList.remove('show');
+  editingId = null;
+}
+
+function sheetHTML(existing){
+  const catHTML = CATS.map(c=>`<div class="cat-chip${existing&&existing.category===c.key?' selected':''}" data-cat="${c.key}" onclick="selectCat(this,'${c.key}')"><span class="emoji">${c.emoji}</span>${c.name}</div>`).join('');
+  const amt = existing ? existing.amount : '';
+  const note = existing ? escHtml(existing.note||'') : '';
+  const dateVal = existing ? existing.date : today();
+  const selectedCat = existing ? existing.category : 'food';
+  return `
+    <h2>${existing?'编辑':'记一笔'}</h2>
+    <div class="amount-input-wrap"><span class="currency">¥</span><input type="text" inputmode="decimal" id="amountInput" placeholder="0.00" value="${amt}" autocomplete="off"></div>
+    <div class="cat-grid" id="catGrid" data-selected="${selectedCat}">${catHTML}</div>
+    <div class="sheet-row"><input type="text" id="noteInput" placeholder="备注（可选）" value="${note}"><input type="date" id="dateInput" value="${dateVal}"></div>
+    <button class="btn-primary" onclick="saveExpense()">${existing?'保存修改':'✓ 记下'}</button>
+    ${existing?`<button class="btn-danger" onclick="deleteExpense('${existing.id}')">删除这条记录</button>`:''}
+  `;
+}
+function selectCat(el, key){
+  document.querySelectorAll('.cat-chip').forEach(c=>c.classList.remove('selected'));
+  el.classList.add('selected');
+  document.getElementById('catGrid').dataset.selected = key;
+}
+function saveExpense(){
+  const amtStr = document.getElementById('amountInput').value.trim();
+  const amount = parseFloat(amtStr);
+  if(isNaN(amount)||amount<=0){ showToast('请输入有效金额'); return; }
+  const category = document.getElementById('catGrid').dataset.selected;
+  const note = document.getElementById('noteInput').value.trim();
+  const date = document.getElementById('dateInput').value;
+  if(!date){ showToast('请选择日期'); return; }
+
+  if(editingId){
+    const idx = expenses.findIndex(e=>e.id===editingId);
+    if(idx!==-1){
+      expenses[idx] = {...expenses[idx],amount:Math.round(amount*100)/100,category,note,date};
+    }
+    showToast('已更新');
+  } else {
+    const id = Date.now().toString();
+    expenses.push({id,amount:Math.round(amount*100)/100,category,note,date});
+    showToast('已记录');
+  }
+  saveExpenses();
+  closeSheet();
+  render();
+}
+function deleteExpense(id){
+  if(!confirm('确定要删除这条记录吗？')) return;
+  expenses = expenses.filter(e=>e.id!==id);
+  saveExpenses();
+  closeSheet();
+  render();
+  showToast('已删除');
+}
+
+function showToast(msg){
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(t._tid);
+  t._tid = setTimeout(()=>t.classList.remove('show'), 1800);
+}
+
+// PWA manifest (blob URL works on HTTP, ignored on file://)
+const manifest = {name:'记账',short_name:'记账',start_url:location.href,display:'standalone',background_color:'#f5f5f5',theme_color:'#4f46e5',icons:[{src:'data:image/svg+xml,'+encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 192 192"><rect width="192" height="192" rx="40" fill="#4f46e5"/><text x="96" y="120" text-anchor="middle" font-size="100">💰</text></svg>'),sizes:'192x192',type:'image/svg+xml'}]};
+const mBlob = new Blob([JSON.stringify(manifest)],{type:'application/json'});
+const mUrl = URL.createObjectURL(mBlob);
+const link = document.createElement('link'); link.rel='manifest'; link.href=mUrl; document.head.appendChild(link);
+
+// Service worker for offline caching (requires HTTPS / localhost)
+if('serviceWorker' in navigator && location.protocol !== 'file:'){
+  navigator.serviceWorker.register('sw.js');
+}
+
+init();
+switchView('today');
+</script>
+</body>
+</html>
